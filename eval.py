@@ -223,7 +223,10 @@ class EmbeddingRanker:
 
     def rank(self, query: str, top_k: int = 5) -> list[dict]:
         q = self.np.array(list(self.model.embed([query])))[0]
-        q /= self.np.linalg.norm(q)
+        norm = self.np.linalg.norm(q)
+        if not self.np.isfinite(norm) or norm == 0:  # quantised model can emit NaN on junk like "12345"
+            return []
+        q /= norm
         sims = self.doc_emb @ q
         order = self.np.argsort(-sims)[:top_k]
         return [

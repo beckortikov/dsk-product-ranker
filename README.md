@@ -26,9 +26,11 @@ returns a ranked list of product cards in well under a millisecond.
 | BM25F only | 82.2 % | 87.7 % | 0.857 | 80 % | 0.08 | 0.12 |
 | + prefix / typo / transliteration | 90.4 % | 97.3 % | 0.937 | 80 % | 0.10 | 0.35 |
 | **Ours** (+ curated aliases, pins, boosts) | **98.6 %** | **100 %** | **0.993** | 80 % | 0.10 | 0.31 |
-| Multilingual embeddings (reference only) | see `eval_results_full.md` | | | | | |
+| Multilingual embeddings, cosine (reference only) | 56.2 % | 74.0 % | 0.648 | 100 % | 29.6 | 56.3 |
 
 Per-tag Hit@1 for ours: flagship 100 %, generic-token 100 %, product 100 %, prefix 100 %, cross-language 100 %, transliteration 100 %, typo 80 %, natural-language questions 100 %.
+
+The embedding reference (`paraphrase-multilingual-MiniLM-L12-v2`, ONNX, `python eval.py --embeddings`) is where the spec allows semantic models: as a point of comparison. On this catalog it loses to the lexical ranker on every tag except generic single words, and it does **not** solve the flagship problem (29 % Hit@1 — DSK Mobile / Smart / Online / Business embed almost identically), while costing ~100× the latency and a 120 MB model at runtime. That is the argument for keeping semantics *offline* (aliases, summaries) and the runtime lexical. Full table: `eval_results_full.md`.
 
 ## Files
 
