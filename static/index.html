@@ -87,6 +87,12 @@ th{color:var(--text-3);font-weight:500;border-top:0}
 td.num{text-align:right;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 td.cell{text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border-radius:4px}
 .muted{color:var(--text-3);font-size:12px}
+.badge{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--accent);color:#fff;margin-left:10px;vertical-align:middle}
+.badge.soft{background:var(--surface-2);color:var(--accent);border:1px solid var(--accent)}
+.panel.ours{border:2px solid var(--accent)}
+tr.ours td{font-weight:600;background:color-mix(in srgb, var(--accent) 10%, transparent)}
+tr.ours td:first-child{border-left:3px solid var(--accent)}
+tr.dim td:first-child{color:var(--text-2)}
 footer{margin-top:24px;color:var(--text-3);font-size:12px}
 a{color:var(--accent);text-decoration:none}
 </style>
@@ -101,8 +107,8 @@ a{color:var(--accent);text-decoration:none}
 <div class="grid tiles" id="tiles"></div>
 
 <div class="grid" style="margin-bottom:16px">
-  <div class="panel">
-    <h2>Try it: ranks on every keystroke, like production</h2>
+  <div class="panel ours">
+    <h2>Try it: ranks on every keystroke, like production <span class="badge">our ranker · production code</span></h2>
     <div class="search">
       <input id="q" placeholder="DSK Mobile · мобилно банкиране · kreditna karta · ипотечен кре · student loan · такси за превод" autofocus autocomplete="off">
       <span class="lat" id="lat"></span>
@@ -121,7 +127,7 @@ a{color:var(--accent);text-decoration:none}
 
 <div class="grid two" style="margin-bottom:16px">
   <div class="panel">
-    <h2>Quality: Hit@1 / Hit@3 / MRR by system</h2>
+    <h2>Quality: Hit@1 / Hit@3 / MRR by system <span class="badge soft">highlighted = ours</span></h2>
     <div class="legend" id="qualLegend"></div>
     <div class="chart tall"><canvas id="qualChart"></canvas></div>
     <div class="muted" id="qualNote"></div>
@@ -209,15 +215,19 @@ async function loadEval() {
   const ev = await r.json();
   const sys = ev.systems; const short = s => s.name.replace(/\s*\(.*?\)\s*/g,'').replace('Ours: + curated aliases, pins, boosts','Ours').replace('BM25F + prefix/typo/translit','+ prefix/typo/translit').replace('Embeddings','Embeddings (reference)');
   const palette = [css('--s1'), css('--s2'), css('--s3')];
+  const isOurs = s => s.name.startsWith('Ours');
+  const oursIdx = sys.findIndex(isOurs);
+  const hex2rgba = (h,a) => { const n=parseInt(h.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; };
   const metrics = [['hit@1','Hit@1'],['hit@3','Hit@3'],['mrr','MRR']];
   $('qualLegend').innerHTML = metrics.map((m,i)=>`<span><i style="background:${palette[i]}"></i>${m[1]}</span>`).join('');
   new Chart($('qualChart'), {
     type:'bar',
-    data:{ labels: sys.map(short), datasets: metrics.map((m,i)=>({label:m[1], data: sys.map(s=>s[m[0]]), backgroundColor: palette[i], borderRadius:{topLeft:4,topRight:4}, borderSkipped:'bottom', maxBarThickness:34, categoryPercentage:.7, barPercentage:.9})) },
+    data:{ labels: sys.map(short), datasets: metrics.map((m,i)=>({label:m[1], data: sys.map(s=>s[m[0]]), backgroundColor: sys.map(s => isOurs(s) ? palette[i] : hex2rgba(palette[i], .38)), borderRadius:{topLeft:4,topRight:4}, borderSkipped:'bottom', maxBarThickness:34, categoryPercentage:.7, barPercentage:.9})) },
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${(c.raw*100).toFixed(1)}${c.dataset.label==='MRR'?'':' %'}`.replace('% %','%')}},
         datalabels:false },
-      scales:{ y:{min:0,max:1, ticks:{callback:v=>(v*100)+'%'}, grid:{color:css('--grid')}}, x:{grid:{display:false}, ticks:{autoSkip:false, maxRotation:0, callback:(v,i)=>short(sys[i]).split(' ')}} } }
+      scales:{ y:{min:0,max:1, ticks:{callback:v=>(v*100)+'%'}, grid:{color:css('--grid')}}, x:{grid:{display:false}, ticks:{autoSkip:false, maxRotation:0, callback:(v,i)=>(i===oursIdx?'★ OURS':short(sys[i])).split(' '), color:(c)=>c.index===oursIdx?css('--accent'):css('--text-2'), font:(c)=>({weight:c.index===oursIdx?'700':'400', size:12})}} } },
+    plugins:[{ id:'oursBand', beforeDatasetsDraw(ch){ if (oursIdx<0) return; const x=ch.scales.x; const half=(x.getPixelForValue(1)-x.getPixelForValue(0))/2; const l=x.getPixelForValue(oursIdx)-half+4, r=x.getPixelForValue(oursIdx)+half-4; const {top,bottom}=ch.chartArea; const c=ch.ctx; c.save(); c.fillStyle=hex2rgba(css('--accent'), .10); c.strokeStyle=css('--accent'); c.lineWidth=1.5; c.beginPath(); c.roundRect(l,top,r-l,bottom-top,6); c.fill(); c.stroke(); c.restore(); } }]
   });
   const ours = sys.find(s=>s.name.startsWith('Ours'));
   $('qualNote').textContent = `${ev.n_queries} hand-curated bilingual queries + ${ev.n_negatives} out-of-catalog negatives. Ours: Hit@1 ${(ours['hit@1']*100).toFixed(1)} %, MRR ${ours.mrr.toFixed(3)}; p50 ${ours.p50_ms.toFixed(2)} ms, p95 ${ours.p95_ms.toFixed(2)} ms in-process.`;
@@ -226,7 +236,7 @@ async function loadEval() {
   const shade = v => v>=.995?'var(--seq-550)':v>=.9?'var(--seq-400)':v>=.7?'var(--seq-250)':'transparent';
   const ink = v => v>=.9?'#fff':'var(--text)';
   $('tagTable').innerHTML = `<tr><th>system</th>${tags.map(t=>`<th style="text-align:center">${t}</th>`).join('')}</tr>` +
-    sys.map(s=>`<tr><td>${short(s)}</td>${tags.map(t=>{const v=s.by_tag[t]??0;return `<td class="cell" style="background:${shade(v)};color:${ink(v)}">${Math.round(v*100)}%</td>`}).join('')}</tr>`).join('');
+    sys.map(s=>`<tr class="${isOurs(s)?'ours':'dim'}"><td>${isOurs(s)?'★ Ours <span class="badge" style="margin-left:6px">production</span>':short(s)}</td>${tags.map(t=>{const v=s.by_tag[t]??0;return `<td class="cell" style="background:${shade(v)};color:${ink(v)}">${Math.round(v*100)}%</td>`}).join('')}</tr>`).join('');
   document.querySelector('#tiles').dataset.hit = (ours['hit@1']*100).toFixed(1);
   tile('Hit@1 (ours)', (ours['hit@1']*100).toFixed(1), '%', `MRR ${ours.mrr.toFixed(3)} · ${ev.n_queries} queries`);
 }
