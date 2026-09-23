@@ -101,7 +101,7 @@ a{color:var(--accent);text-decoration:none}
 <div class="wrap">
 <header>
   <h1>DSK Bank Product Cards Ranker <small>live dashboard</small></h1>
-  <div class="status"><span><span class="dot" id="dot"></span><span id="status">connecting…</span></span><a href="/docs">API docs</a></div>
+  <div class="status"><span><span class="dot" id="dot"></span><span id="status">connecting…</span></span><a href="docs">API docs</a></div>
 </header>
 
 <div class="grid tiles" id="tiles"></div>
@@ -187,8 +187,8 @@ async function run() {
   if (!q) { render([], null); $('tokens').innerHTML = ''; return; }
   const t0 = performance.now();
   const [r, a] = await Promise.all([
-    fetch('/rank-product-cards', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({query:q, top_k:8, min_relevance:0})}),
-    fetch('/analyze?q=' + encodeURIComponent(q)),
+    fetch('rank-product-cards', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({query:q, top_k:8, min_relevance:0})}),
+    fetch('analyze?q=' + encodeURIComponent(q)),
   ]);
   if (my !== seq) return;
   const items = await r.json(); const an = await a.json();
@@ -222,7 +222,7 @@ function render(items, q) {
 
 // ---------- quality ----------
 async function loadEval() {
-  const r = await fetch('/eval-results'); if (!r.ok) { $('qualNote').textContent = 'eval_results.json missing. Run: python eval.py --json eval_results.json'; return; }
+  const r = await fetch('eval-results'); if (!r.ok) { $('qualNote').textContent = 'eval_results.json missing. Run: python eval.py --json eval_results.json'; return; }
   const ev = await r.json();
   const sys = ev.systems; const short = s => s.name.replace(/\s*\(.*?\)\s*/g,'').replace('Ours: + curated aliases, pins, boosts','Ours').replace('BM25F + prefix/typo/translit','+ prefix/typo/translit').replace('Embeddings','Embeddings (reference)');
   const palette = [css('--s1'), css('--s2'), css('--s3')];
@@ -256,7 +256,7 @@ async function loadEval() {
 
 // ---------- held-out ----------
 async function loadHoldout() {
-  const r = await fetch('/eval-results?set=holdout'); if (!r.ok) { $('hoNote').textContent = 'eval_holdout.json missing. Run: python eval.py --holdout --json eval_holdout.json'; return; }
+  const r = await fetch('eval-results?set=holdout'); if (!r.ok) { $('hoNote').textContent = 'eval_holdout.json missing. Run: python eval.py --holdout --json eval_holdout.json'; return; }
   const ho = await r.json(); const sys = ho.systems; const isOurs = s => s.name.startsWith('Ours');
   const ours = sys.find(isOurs);
   tile('Hit@1 held-out', (ours['hit@1']*100).toFixed(1), '%', `ours · Hit@3 ${(ours['hit@3']*100).toFixed(1)} % · ${ho.n_queries} generated queries`);
@@ -277,7 +277,7 @@ function tile(k, v, unit, s) { tiles[k] = {v,unit,s}; $('tiles').innerHTML = Obj
 
 async function refreshStats() {
   try {
-    const st = await (await fetch('/catalog/stats')).json();
+    const st = await (await fetch('catalog/stats')).json();
     $('dot').className = 'dot'; $('status').textContent = `${st.cards} cards · catalog reloaded ${new Date(st.catalog_mtime*1000).toLocaleTimeString()}`;
     tile('Cards', st.cards, '', `from ${st.documents} pages · ${st.flagships.length} flagships`);
     tile('Selling messages', st.summary_source.tagline, '', `hero taglines · ${st.summary_source.first_sentence} fallbacks`);

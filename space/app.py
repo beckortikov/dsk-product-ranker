@@ -1,16 +1,21 @@
-"""Hugging Face Space entry point (Gradio SDK, free tier).
+"""Hugging Face Space entry point (Gradio SDK, ZeroGPU free tier).
 
-The Space itself holds only this file + requirements.txt. On start it clones
-the public GitHub repo (single source of truth) into a writable temp dir and
-serves the real FastAPI app from there: dashboard at `/`, API at
-`/rank-product-cards`, Swagger at `/docs`. A tiny Gradio UI is mounted at
-`/gradio` as well. Restarting the Space = fresh clone = latest commit.
+The Space holds only this file + requirements.txt. On start it clones the
+public GitHub repo (single source of truth) into a writable temp dir and
+serves the real FastAPI app from there, mounted *inside* Gradio's server:
+
+    /               Gradio search box (what the Space iframe shows) + links
+    /dashboard/     the full live dashboard
+    /dashboard/rank-product-cards, /dashboard/docs, ...   the API
+
+Why inside Gradio: on ZeroGPU hardware the `spaces` runtime owns port 7860
+and only hands traffic to a server started through `Blocks.launch()`, so a
+bare uvicorn on 7860 fails with "address already in use".
+Restarting the Space = fresh clone = latest commit.
 """
 from __future__ import annotations
 
-# Free-tier Spaces on this account run on ZeroGPU hardware. Its runtime
-# requires `import spaces` before anything else and at least one function
-# decorated with @spaces.GPU (we never call it: the ranker is CPU-only).
+# ZeroGPU requires `import spaces` before gradio and one @spaces.GPU function.
 try:
     import spaces  # noqa: F401
 except ImportError:  # local run / CPU hardware
@@ -24,26 +29,25 @@ import os
 import subprocess
 import sys
 
+import gradio as gr
+from fastapi.responses import RedirectResponse
+
 REPO = os.environ.get("DSK_REPO", "https://github.com/beckortikov/dsk-product-ranker")
 DST = os.environ.get("DSK_DIR", "/tmp/dsk-product-ranker")
-# HF sets GRADIO_SERVER_PORT (on ZeroGPU hardware 7860 is taken by its proxy);
-# bind wherever the platform tells us to, exactly like gradio's own launch() does.
-PORT = int(os.environ.get("GRADIO_SERVER_PORT") or os.environ.get("PORT") or 7860)
-HOST = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
 
 if not os.path.exists(os.path.join(DST, "ranker.py")):
     subprocess.run(["git", "clone", "--depth", "1", REPO, DST], check=True)
 
 os.chdir(DST)
 sys.path.insert(0, DST)
+os.environ.setdefault("CATALOG_PATH", os.path.join(DST, "products.json"))
 
 
 @spaces.GPU
 def _zerogpu_placeholder() -> str:
-    """Satisfies the ZeroGPU runtime check; never invoked."""
+    """Satisfies the ZeroGPU runtime check; never invoked (CPU-only ranker)."""
     return "cpu-only ranker"
 
-os.environ.setdefault("CATALOG_PATH", os.path.join(DST, "products.json"))
 
 # The repo's module is also called app.py -> load it under another name.
 _spec = importlib.util.spec_from_file_location("dsk_app", os.path.join(DST, "app.py"))
@@ -52,28 +56,39 @@ sys.modules["dsk_app"] = _mod
 _spec.loader.exec_module(_mod)
 api = _mod.app
 
-try:  # optional: a plain Gradio search box at /gradio
-    import gradio as gr
+from ranker import ProductCardRanker  # noqa: E402  (path inserted above)
 
-    from ranker import ProductCardRanker  # noqa: E402  (path inserted above)
+_ranker = ProductCardRanker.from_json(os.environ["CATALOG_PATH"])
 
-    _ranker = ProductCardRanker.from_json(os.environ["CATALOG_PATH"])
 
-    def _search(q: str):
-        rows = _ranker.rank(q or "", top_k=8)
-        return [[r["relevance"], r["document_id"], r["product_name"], r["product_summary"]] for r in rows]
+def _search(q: str):
+    rows = _ranker.rank(q or "", top_k=8)
+    return [[r["relevance"], r["document_id"], r["product_name"], r["product_summary"]] for r in rows]
 
-    with gr.Blocks(title="DSK Product Cards Ranker") as demo:
-        gr.Markdown("## DSK Bank Product Cards Ranker\nFull dashboard: [/](../) · API docs: [/docs](../docs)")
-        q = gr.Textbox(label="query (BG / EN, ranks on every keystroke)", placeholder="мобилно банкиране")
-        out = gr.Dataframe(headers=["relevance", "document_id", "product_name", "product_summary"], interactive=False)
-        q.change(_search, q, out)
-    api = gr.mount_gradio_app(api, demo, path="/gradio")
-except ImportError:
-    pass
+
+with gr.Blocks(title="DSK Product Cards Ranker") as demo:
+    gr.Markdown(
+        "## DSK Bank — Product Cards Ranker\n"
+        "**[Open the full live dashboard →](dashboard/)** (relevance chart, query analysis, eval, latency) · "
+        "[API docs](dashboard/docs) · [code on GitHub](https://github.com/beckortikov/dsk-product-ranker)\n\n"
+        "Quick try below: ranks on every keystroke, Bulgarian or English."
+    )
+    q = gr.Textbox(label="query", placeholder="мобилно банкиране · kreditna karta · student loan · dsk mob")
+    out = gr.Dataframe(headers=["relevance", "document_id", "product_name", "product_summary"], interactive=False)
+    q.change(_search, q, out)
+    gr.Examples(["DSK Mobile", "mobile", "мобилно банкиране", "ипотечен кре", "kreditna karta", "student loan"], q)
+
 
 if __name__ == "__main__":
-    import uvicorn
+    # Gradio (patched by `spaces` on ZeroGPU) owns the port; we attach our
+    # FastAPI app to its server after it is up.
+    demo.launch(server_name="0.0.0.0", prevent_thread_lock=True, show_api=False)
+    server = getattr(demo, "server_app", None) or getattr(demo, "app", None)
 
-    print(f"binding {HOST}:{PORT}", flush=True)
-    uvicorn.run(api, host=HOST, port=PORT)
+    @server.get("/dashboard", include_in_schema=False)
+    def _dash_redirect():
+        return RedirectResponse(url="/dashboard/")
+
+    server.mount("/dashboard", api)
+    print("mounted ranker app at /dashboard", flush=True)
+    demo.block_thread()
