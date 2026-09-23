@@ -15,7 +15,10 @@ import sys
 
 REPO = os.environ.get("DSK_REPO", "https://github.com/beckortikov/dsk-product-ranker")
 DST = os.environ.get("DSK_DIR", "/tmp/dsk-product-ranker")
-PORT = int(os.environ.get("PORT", "7860"))
+# HF sets GRADIO_SERVER_PORT (on ZeroGPU hardware 7860 is taken by its proxy);
+# bind wherever the platform tells us to, exactly like gradio's own launch() does.
+PORT = int(os.environ.get("GRADIO_SERVER_PORT") or os.environ.get("PORT") or 7860)
+HOST = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
 
 if not os.path.exists(os.path.join(DST, "ranker.py")):
     subprocess.run(["git", "clone", "--depth", "1", REPO, DST], check=True)
@@ -54,4 +57,5 @@ except ImportError:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(api, host="0.0.0.0", port=PORT)
+    print(f"binding {HOST}:{PORT}", flush=True)
+    uvicorn.run(api, host=HOST, port=PORT)
