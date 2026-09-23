@@ -36,6 +36,7 @@ from ranker import ProductCardRanker
 ROOT = Path(__file__).parent
 CATALOG_PATH = Path(os.environ.get("CATALOG_PATH", ROOT / "products.json"))
 EVAL_JSON = ROOT / "eval_results.json"
+HOLDOUT_JSON = ROOT / "eval_holdout.json"
 DASHBOARD_HTML = ROOT / "static" / "index.html"
 CACHE_SIZE = int(os.environ.get("RANK_CACHE_SIZE", "4096"))
 _LATENCY_WINDOW = 500  # last N request latencies kept for the dashboard
@@ -177,10 +178,12 @@ def analyze(q: str = Query(..., description="Raw query")) -> dict:
 
 
 @app.get("/eval-results")
-def eval_results() -> dict:
-    if not EVAL_JSON.exists():
-        raise HTTPException(404, "run: python eval.py --json eval_results.json")
-    return json.loads(EVAL_JSON.read_text(encoding="utf-8"))
+def eval_results(set: str = Query("dev", pattern="^(dev|holdout)$")) -> dict:
+    """dev = curated 73-query set (tuned against); holdout = 770 generated queries (never tuned against)."""
+    path = HOLDOUT_JSON if set == "holdout" else EVAL_JSON
+    if not path.exists():
+        raise HTTPException(404, f"run: python eval.py {'--holdout ' if set == 'holdout' else ''}--json {path.name}")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @app.get("/catalog/stats")

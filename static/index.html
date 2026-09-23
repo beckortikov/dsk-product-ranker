@@ -127,15 +127,26 @@ a{color:var(--accent);text-decoration:none}
 
 <div class="grid two" style="margin-bottom:16px">
   <div class="panel">
-    <h2>Quality: Hit@1 / Hit@3 / MRR by system <span class="badge soft">highlighted = ours</span></h2>
+    <h2>Quality on the dev set (73 curated queries, tuned against) <span class="badge soft">highlighted = ours</span></h2>
     <div class="legend" id="qualLegend"></div>
     <div class="chart tall"><canvas id="qualChart"></canvas></div>
     <div class="muted" id="qualNote"></div>
   </div>
   <div class="panel">
-    <h2>Hit@1 by query type</h2>
-    <table id="tagTable"></table>
+    <h2>Dev set: Hit@1 by query type</h2>
+    <div style="overflow-x:auto"><table id="tagTable"></table></div>
     <div class="muted" style="margin-top:8px">flagship = DSK Mobile/Smart/Online/…; generic = single common word; xlang = query language ≠ page language; long = natural-language question</div>
+  </div>
+</div>
+
+<div class="grid" style="margin-bottom:16px">
+  <div class="panel">
+    <h2>Held-out check: generated queries, never tuned against <span class="badge soft" id="hoBadge">honest number</span></h2>
+    <div class="results">
+      <div><table id="hoTable"></table></div>
+      <div style="overflow-x:auto"><table id="hoTagTable"></table></div>
+    </div>
+    <div class="muted" id="hoNote" style="margin-top:8px"></div>
   </div>
 </div>
 
@@ -238,11 +249,29 @@ async function loadEval() {
   $('tagTable').innerHTML = `<tr><th>system</th>${tags.map(t=>`<th style="text-align:center">${t}</th>`).join('')}</tr>` +
     sys.map(s=>`<tr class="${isOurs(s)?'ours':'dim'}"><td>${isOurs(s)?'★ Ours <span class="badge" style="margin-left:6px">production</span>':short(s)}</td>${tags.map(t=>{const v=s.by_tag[t]??0;return `<td class="cell" style="background:${shade(v)};color:${ink(v)}">${Math.round(v*100)}%</td>`}).join('')}</tr>`).join('');
   document.querySelector('#tiles').dataset.hit = (ours['hit@1']*100).toFixed(1);
-  tile('Hit@1 (ours)', (ours['hit@1']*100).toFixed(1), '%', `MRR ${ours.mrr.toFixed(3)} · ${ev.n_queries} queries`);
+  DEV_HIT1 = ours['hit@1']*100;
+  tile('Hit@1 dev-set', (ours['hit@1']*100).toFixed(1), '%', `ours · MRR ${ours.mrr.toFixed(3)} · ${ev.n_queries} curated queries`);
+  loadHoldout();
+}
+
+// ---------- held-out ----------
+async function loadHoldout() {
+  const r = await fetch('/eval-results?set=holdout'); if (!r.ok) { $('hoNote').textContent = 'eval_holdout.json missing. Run: python eval.py --holdout --json eval_holdout.json'; return; }
+  const ho = await r.json(); const sys = ho.systems; const isOurs = s => s.name.startsWith('Ours');
+  const ours = sys.find(isOurs);
+  tile('Hit@1 held-out', (ours['hit@1']*100).toFixed(1), '%', `ours · Hit@3 ${(ours['hit@3']*100).toFixed(1)} % · ${ho.n_queries} generated queries`);
+  const pct = v => (v*100).toFixed(1)+' %';
+  $('hoTable').innerHTML = `<tr><th>system</th><th style="text-align:right">Hit@1</th><th style="text-align:right">Hit@3</th><th style="text-align:right">MRR</th></tr>` +
+    sys.map(s=>`<tr class="${isOurs(s)?'ours':'dim'}"><td>${isOurs(s)?'★ Ours <span class="badge" style="margin-left:6px">production</span>':s.name}</td><td class="num">${pct(s['hit@1'])}</td><td class="num">${pct(s['hit@3'])}</td><td class="num">${s.mrr.toFixed(3)}</td></tr>`).join('');
+  const tags = ho.tags; const shade = v => v>=.95?'var(--seq-550)':v>=.85?'var(--seq-400)':v>=.7?'var(--seq-250)':'transparent'; const ink = v => v>=.85?'#fff':'var(--text)';
+  const short = t => t.replace('_bg',' BG').replace('_en',' EN').replace('subset','2 words').replace('name','full name');
+  $('hoTagTable').innerHTML = `<tr><th></th>${tags.map(t=>`<th style="text-align:center;font-size:11px">${short(t)}</th>`).join('')}</tr>` +
+    sys.map(s=>`<tr class="${isOurs(s)?'ours':'dim'}"><td style="white-space:nowrap">${isOurs(s)?'★ Ours':s.name.replace(' (reference)','').replace('BM25F + prefix/typo/translit','+ fallbacks')}</td>${tags.map(t=>{const v=s.by_tag[t]??0;return `<td class="cell" style="background:${shade(v)};color:${ink(v)}">${Math.round(v*100)}%</td>`}).join('')}</tr>`).join('');
+  $('hoNote').textContent = `${ho.n_queries} queries generated mechanically from the catalog (seed 0): full names, 55 % prefixes, adjacent-letter typos, transliterated names, random 2-word subsets, hero taglines. The dev-set number above is optimistic by ~${(DEV_HIT1-ours['hit@1']*100).toFixed(0)} points; the gap sits in genuinely ambiguous prefix / 2-word queries (Hit@3 ${pct(ours['hit@3'])}).`;
 }
 
 // ---------- stats / latency / catalog ----------
-let latChart = null, catChart = null;
+let latChart = null, catChart = null, DEV_HIT1 = 0;
 const tiles = {};
 function tile(k, v, unit, s) { tiles[k] = {v,unit,s}; $('tiles').innerHTML = Object.entries(tiles).map(([k,t])=>`<div class="tile"><div class="k">${k}</div><div class="v">${t.v}<small>${t.unit||''}</small></div><div class="s">${t.s||''}</div></div>`).join(''); }
 

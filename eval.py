@@ -334,6 +334,13 @@ def main() -> None:
     cards = json.loads(Path(args.catalog).read_text(encoding="utf-8"))
     if args.holdout:
         rows = run_holdout(cards, embeddings=args.embeddings, show_fails=args.show_fails)
+        if args.json:
+            tags = sorted({t for _, m in rows for t in m["by_tag"]})
+            Path(args.json).write_text(json.dumps({
+                "n_queries": len(holdout_set(cards)), "tags": tags, "generated": True,
+                "systems": [{"name": name, **{k: m[k] for k in ("hit@1", "hit@3", "mrr")}, "by_tag": m["by_tag"]} for name, m in rows],
+            }, ensure_ascii=False, indent=1), encoding="utf-8")
+            print(f"wrote {args.json}")
         if args.md:
             tags = sorted({t for _, m in rows for t in m["by_tag"]})
             lines = ["| system | Hit@1 | Hit@3 | MRR | " + " | ".join(tags) + " |", "|---|---|---|---|" + "---|" * len(tags)]
