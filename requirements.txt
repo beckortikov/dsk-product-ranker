@@ -1,0 +1,19 @@
+# runtime (API + ranker)
+snowballstemmer>=2.2
+rapidfuzz>=3.0
+fastapi>=0.110
+uvicorn>=0.27
+pydantic>=2.0
+
+# offline catalog build
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+
+# dev / demo / eval
+pytest>=8.0
+httpx>=0.27          # fastapi TestClient
+ipywidgets>=8.0
+jupyter>=1.0
+# fastembed>=0.3     # optional: `python eval.py --embeddings` reference baseline
+# anthropic>=0.40    # optional: `python build_catalog.py --llm` summaries
