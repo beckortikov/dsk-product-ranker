@@ -31,6 +31,7 @@ import sys
 
 import gradio as gr
 from fastapi.responses import RedirectResponse
+from starlette.routing import Mount, Route
 
 REPO = os.environ.get("DSK_REPO", "https://github.com/beckortikov/dsk-product-ranker")
 DST = os.environ.get("DSK_DIR", "/tmp/dsk-product-ranker")
@@ -84,11 +85,9 @@ if __name__ == "__main__":
     # FastAPI app to its server after it is up.
     demo.launch(server_name="0.0.0.0", prevent_thread_lock=True)
     server = getattr(demo, "server_app", None) or getattr(demo, "app", None)
-
-    @server.get("/dashboard", include_in_schema=False)
-    def _dash_redirect():
-        return RedirectResponse(url="/dashboard/")
-
-    server.mount("/dashboard", api)
-    print("mounted ranker app at /dashboard", flush=True)
+    # Gradio ends its route table with a catch-all that serves its index for
+    # any path, so our routes must go *in front* of it, not be appended.
+    server.router.routes.insert(0, Mount("/dashboard", app=api))
+    server.router.routes.insert(0, Route("/dashboard", endpoint=lambda request: RedirectResponse(url="/dashboard/")))
+    print("mounted ranker app at /dashboard (front of route table)", flush=True)
     demo.block_thread()
