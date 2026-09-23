@@ -1,0 +1,463 @@
+{
+ "n_queries": 73,
+ "n_negatives": 10,
+ "tags": [
+  "flagship",
+  "generic",
+  "long",
+  "prefix",
+  "product",
+  "translit",
+  "typo",
+  "xlang"
+ ],
+ "systems": [
+  {
+   "name": "BM25F only (no boosts, no prefix/typo/translit)",
+   "hit@1": 0.821917808219178,
+   "hit@3": 0.8767123287671232,
+   "mrr": 0.8566536203522506,
+   "abstain": 0.8,
+   "by_tag": {
+    "flagship": 0.7142857142857143,
+    "generic": 0.6666666666666666,
+    "prefix": 1.0,
+    "product": 1.0,
+    "xlang": 0.9473684210526315,
+    "typo": 0.4,
+    "translit": 0.2,
+    "long": 1.0
+   },
+   "p50_ms": 0.07868799999999343,
+   "p95_ms": 0.1234579999999652,
+   "p99_ms": 0.15975000000001405
+  },
+  {
+   "name": "BM25F + prefix/typo/translit",
+   "hit@1": 0.9041095890410958,
+   "hit@3": 0.9726027397260274,
+   "mrr": 0.9372146118721459,
+   "abstain": 0.8,
+   "by_tag": {
+    "flagship": 0.7857142857142857,
+    "generic": 0.6666666666666666,
+    "prefix": 1.0,
+    "product": 1.0,
+    "xlang": 1.0,
+    "typo": 0.6,
+    "translit": 0.8,
+    "long": 1.0
+   },
+   "p50_ms": 0.10033350000002161,
+   "p95_ms": 0.28733300000005624,
+   "p99_ms": 0.36687499999998874
+  },
+  {
+   "name": "Ours: + curated aliases, pins, boosts",
+   "hit@1": 0.9863013698630136,
+   "hit@3": 1.0,
+   "mrr": 0.9931506849315068,
+   "abstain": 0.8,
+   "by_tag": {
+    "flagship": 1.0,
+    "generic": 1.0,
+    "prefix": 1.0,
+    "product": 1.0,
+    "xlang": 1.0,
+    "typo": 0.8,
+    "translit": 1.0,
+    "long": 1.0
+   },
+   "p50_ms": 0.10102049999999307,
+   "p95_ms": 0.3002920000000353,
+   "p99_ms": 0.37291700000008365
+  },
+  {
+   "name": "Embeddings (multilingual MiniLM, reference only)",
+   "hit@1": 0.5616438356164384,
+   "hit@3": 0.7397260273972602,
+   "mrr": 0.6476407914764081,
+   "abstain": 1.0,
+   "by_tag": {
+    "flagship": 0.2857142857142857,
+    "generic": 1.0,
+    "prefix": 0.16666666666666666,
+    "product": 0.6470588235294118,
+    "xlang": 0.8421052631578947,
+    "typo": 0.4,
+    "translit": 0.4,
+    "long": 0.5
+   },
+   "p50_ms": 29.094166499999297,
+   "p95_ms": 47.755290999999644,
+   "p99_ms": 86.75979100000042
+  }
+ ],
+ "queries": [
+  {
+   "q": "DSK Mobile",
+   "gold": "dsk mobile",
+   "tag": "flagship"
+  },
+  {
+   "q": "dsk mobile app",
+   "gold": "dsk mobile",
+   "tag": "flagship"
+  },
+  {
+   "q": "мобилно банкиране",
+   "gold": "dsk mobile",
+   "tag": "flagship"
+  },
+  {
+   "q": "mobile banking",
+   "gold": "dsk mobile",
+   "tag": "flagship"
+  },
+  {
+   "q": "mobile",
+   "gold": "dsk mobile",
+   "tag": "generic"
+  },
+  {
+   "q": "ново мобилно приложение",
+   "gold": "dsk mobile",
+   "tag": "generic"
+  },
+  {
+   "q": "DSK Smart",
+   "gold": "dsk smart",
+   "tag": "flagship"
+  },
+  {
+   "q": "дск смарт",
+   "gold": "dsk smart",
+   "tag": "flagship"
+  },
+  {
+   "q": "DSK Online",
+   "gold": "dsk online",
+   "tag": "flagship"
+  },
+  {
+   "q": "онлайн банкиране",
+   "gold": "dsk online",
+   "tag": "flagship"
+  },
+  {
+   "q": "online banking",
+   "gold": "dsk online",
+   "tag": "flagship"
+  },
+  {
+   "q": "дск директ",
+   "gold": "дск директ",
+   "tag": "flagship"
+  },
+  {
+   "q": "dsk direct",
+   "gold": "дск директ",
+   "tag": "flagship"
+  },
+  {
+   "q": "DSK Business",
+   "gold": "dsk business",
+   "tag": "flagship"
+  },
+  {
+   "q": "mtoken",
+   "gold": "dsk mtoken",
+   "tag": "flagship"
+  },
+  {
+   "q": "мтокен",
+   "gold": "dsk mtoken",
+   "tag": "flagship"
+  },
+  {
+   "q": "потвърждаване на преводи",
+   "gold": "dsk mtoken",
+   "tag": "generic"
+  },
+  {
+   "q": "dsk mob",
+   "gold": "dsk mobile",
+   "tag": "prefix"
+  },
+  {
+   "q": "dsk sma",
+   "gold": "dsk smart",
+   "tag": "prefix"
+  },
+  {
+   "q": "ипотечен кре",
+   "gold": "ипотечен кредит за покупка на недвижим имот",
+   "tag": "prefix"
+  },
+  {
+   "q": "студентск",
+   "gold": "студентски кредит",
+   "tag": "prefix"
+  },
+  {
+   "q": "кредитна карта gal",
+   "gold": "кредитна карта galaxy",
+   "tag": "prefix"
+  },
+  {
+   "q": "virtual po",
+   "gold": "виртуален пос терминал",
+   "tag": "prefix"
+  },
+  {
+   "q": "кредитна карта galaxy",
+   "gold": "кредитна карта galaxy",
+   "tag": "product"
+  },
+  {
+   "q": "студентски кредит",
+   "gold": "студентски кредит",
+   "tag": "product"
+  },
+  {
+   "q": "кредит за рефинансиране",
+   "gold": "кредит за рефинансиране",
+   "tag": "product"
+  },
+  {
+   "q": "ипотечен кредит",
+   "gold": "ипотечен кредит за покупка на недвижим имот",
+   "tag": "product"
+  },
+  {
+   "q": "детски влог",
+   "gold": "детски влог",
+   "tag": "product"
+  },
+  {
+   "q": "овърдрафт",
+   "gold": "кредит овърдрафт",
+   "tag": "product"
+  },
+  {
+   "q": "виртуален пос",
+   "gold": "виртуален пос терминал",
+   "tag": "product"
+  },
+  {
+   "q": "структурирани продукти",
+   "gold": "структурирани продукти",
+   "tag": "product"
+  },
+  {
+   "q": "застраховка живот",
+   "gold": "застраховка живот с protectinvest",
+   "tag": "product"
+  },
+  {
+   "q": "застраховка за пътуване",
+   "gold": "застраховка моето пътуване|застраховка помощ при пътуване",
+   "tag": "product"
+  },
+  {
+   "q": "стандартна разплащателна сметка",
+   "gold": "стандартна разплащателна сметка",
+   "tag": "product"
+  },
+  {
+   "q": "сметка за деца",
+   "gold": "сметки за деца и тийнейджъри",
+   "tag": "product"
+  },
+  {
+   "q": "потребителски кредит",
+   "gold": "стандартен потребителски кредит|потребителски кредит онлайн",
+   "tag": "product"
+  },
+  {
+   "q": "кредит онлайн",
+   "gold": "потребителски кредит онлайн",
+   "tag": "product"
+  },
+  {
+   "q": "wizz air",
+   "gold": "кредитна карта dsk wizz air",
+   "tag": "product"
+  },
+  {
+   "q": "банкови гаранции",
+   "gold": "банкови гаранции",
+   "tag": "product"
+  },
+  {
+   "q": "валутен суап",
+   "gold": "валутен суап",
+   "tag": "product"
+  },
+  {
+   "q": "credit card galaxy",
+   "gold": "кредитна карта galaxy",
+   "tag": "xlang"
+  },
+  {
+   "q": "student loan",
+   "gold": "студентски кредит",
+   "tag": "xlang"
+  },
+  {
+   "q": "mortgage refinancing",
+   "gold": "кредит за рефинансиране",
+   "tag": "xlang"
+  },
+  {
+   "q": "visa platinum",
+   "gold": "дебитна карта visa platinum",
+   "tag": "xlang"
+  },
+  {
+   "q": "visa infinite",
+   "gold": "дебитна карта visa infinite debit",
+   "tag": "xlang"
+  },
+  {
+   "q": "multicash",
+   "gold": "multicash",
+   "tag": "xlang"
+  },
+  {
+   "q": "home insurance",
+   "gold": "застраховка любим дом стандарт",
+   "tag": "xlang"
+  },
+  {
+   "q": "life insurance",
+   "gold": "застраховка живот с protectinvest",
+   "tag": "xlang"
+  },
+  {
+   "q": "travel insurance",
+   "gold": "застраховка моето пътуване|застраховка помощ при пътуване",
+   "tag": "xlang"
+  },
+  {
+   "q": "structured products",
+   "gold": "структурирани продукти",
+   "tag": "xlang"
+  },
+  {
+   "q": "virtual pos",
+   "gold": "виртуален пос терминал",
+   "tag": "xlang"
+  },
+  {
+   "q": "children savings account",
+   "gold": "детски влог",
+   "tag": "xlang"
+  },
+  {
+   "q": "overdraft",
+   "gold": "кредит овърдрафт",
+   "tag": "xlang"
+  },
+  {
+   "q": "bank guarantees",
+   "gold": "банкови гаранции",
+   "tag": "xlang"
+  },
+  {
+   "q": "interest rate swap",
+   "gold": "лихвен суап",
+   "tag": "xlang"
+  },
+  {
+   "q": "donation account",
+   "gold": "дарителска сметка дск пулс",
+   "tag": "xlang"
+  },
+  {
+   "q": "mobile app for individuals",
+   "gold": "dsk mobile",
+   "tag": "xlang"
+  },
+  {
+   "q": "dsk online banking",
+   "gold": "dsk online",
+   "tag": "xlang"
+  },
+  {
+   "q": "депозит",
+   "gold": "безсрочен влог",
+   "tag": "xlang"
+  },
+  {
+   "q": "кредитна крата",
+   "gold": "кредитна карта galaxy|кредитна карта platinum|кредитна карта dsk shopping|кредитна карта dsk wizz air|кредитна карта visa business gold|visa business credit",
+   "tag": "typo"
+  },
+  {
+   "q": "credit crad galaxy",
+   "gold": "кредитна карта galaxy",
+   "tag": "typo"
+  },
+  {
+   "q": "ипотечен кредт",
+   "gold": "ипотечен кредит за покупка на недвижим имот",
+   "tag": "typo"
+  },
+  {
+   "q": "dsk mobail",
+   "gold": "dsk mobile",
+   "tag": "typo"
+  },
+  {
+   "q": "mtokn",
+   "gold": "dsk mtoken",
+   "tag": "typo"
+  },
+  {
+   "q": "дск мобайл",
+   "gold": "dsk mobile",
+   "tag": "translit"
+  },
+  {
+   "q": "dsk direkt",
+   "gold": "дск директ",
+   "tag": "translit"
+  },
+  {
+   "q": "студентски кредит",
+   "gold": "студентски кредит",
+   "tag": "translit"
+  },
+  {
+   "q": "kreditna karta",
+   "gold": "кредитна карта galaxy|кредитна карта platinum|кредитна карта dsk shopping|кредитна карта dsk wizz air|кредитна карта visa business gold|visa business credit",
+   "tag": "translit"
+  },
+  {
+   "q": "multikesh",
+   "gold": "multicash",
+   "tag": "translit"
+  },
+  {
+   "q": "как да си открия сметка за дете",
+   "gold": "сметки за деца и тийнейджъри",
+   "tag": "long"
+  },
+  {
+   "q": "искам кредит за покупка на апартамент",
+   "gold": "ипотечен кредит за покупка на недвижим имот|кредит за покупка и довършителни работи",
+   "tag": "long"
+  },
+  {
+   "q": "how do I confirm a transfer on my phone",
+   "gold": "dsk mtoken",
+   "tag": "long"
+  },
+  {
+   "q": "card with no annual fee",
+   "gold": "кредитна карта galaxy",
+   "tag": "long"
+  }
+ ]
+}

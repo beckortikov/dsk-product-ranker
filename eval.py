@@ -242,6 +242,7 @@ def main() -> None:
     ap.add_argument("--embeddings", action="store_true")
     ap.add_argument("--show-fails", action="store_true")
     ap.add_argument("--md", default=None, help="write results table to this markdown file")
+    ap.add_argument("--json", default=None, help="write results to this JSON file (consumed by the dashboard)")
     args = ap.parse_args()
 
     cards = json.loads(Path(args.catalog).read_text(encoding="utf-8"))
@@ -273,6 +274,16 @@ def main() -> None:
         print(f"   Hit@1 {m['hit@1']:.1%}  Hit@3 {m['hit@3']:.1%}  MRR {m['mrr']:.3f}  abstain {m['abstain']:.0%}  "
               f"p50 {lat['p50_ms']:.2f} ms  p95 {lat['p95_ms']:.2f} ms")
         print("   by tag:", {t: f"{v:.0%}" for t, v in m["by_tag"].items()})
+
+    if args.json:
+        tags = sorted({t for _, _, t in EVAL})
+        Path(args.json).write_text(json.dumps({
+            "n_queries": len(EVAL), "n_negatives": len(NEGATIVES), "tags": tags,
+            "systems": [{"name": name, **{k: m[k] for k in ("hit@1", "hit@3", "mrr", "abstain")},
+                         "by_tag": m["by_tag"], **lat} for name, m, lat in rows],
+            "queries": [{"q": q, "gold": g, "tag": t} for q, g, t in EVAL],
+        }, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"wrote {args.json}")
 
     if args.md:
         tags = sorted({t for _, _, t in EVAL})

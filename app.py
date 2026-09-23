@@ -27,13 +27,18 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from ranker import ProductCardRanker
 
-CATALOG_PATH = Path(os.environ.get("CATALOG_PATH", Path(__file__).parent / "products.json"))
+ROOT = Path(__file__).parent
+CATALOG_PATH = Path(os.environ.get("CATALOG_PATH", ROOT / "products.json"))
+EVAL_JSON = ROOT / "eval_results.json"
+DASHBOARD_HTML = ROOT / "static" / "index.html"
 CACHE_SIZE = int(os.environ.get("RANK_CACHE_SIZE", "4096"))
+_LATENCY_WINDOW = 500  # last N request latencies kept for the dashboard
 
 log = logging.getLogger("ranker")
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
@@ -75,6 +80,7 @@ class _Catalog:
 
 
 catalog = _Catalog(CATALOG_PATH)
+_latencies: list[float] = []  # ring buffer of recent request latencies (ms)
 
 
 # The frontend fires the same prefixes from many users; the cache key includes
@@ -134,12 +140,71 @@ def rank_product_cards(req: RankRequest, response: Response, request: Request) -
     items = [dict(t) for t in _cached_rank(req.query, req.top_k, req.min_relevance, mtime)]
     ms = (time.perf_counter() - t0) * 1000
     response.headers["X-Latency-Ms"] = f"{ms:.3f}"
+    _latencies.append(ms)
+    if len(_latencies) > _LATENCY_WINDOW:
+        del _latencies[: len(_latencies) - _LATENCY_WINDOW]
     # Structured request log: this is the data that feeds boost/alias tuning.
     log.info(json.dumps({
         "q": req.query, "k": req.top_k, "ms": round(ms, 3),
         "top": [(i["document_id"], i["relevance"]) for i in items[:5]],
     }, ensure_ascii=False))
     return items
+
+
+# --------------------------------------------------------------------------- #
+# Dashboard (GET /) + the read-only endpoints it uses
+# --------------------------------------------------------------------------- #
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def dashboard() -> str:
+    if not DASHBOARD_HTML.exists():
+        raise HTTPException(404, "dashboard not built: static/index.html missing")
+    return DASHBOARD_HTML.read_text(encoding="utf-8")
+
+
+@app.get("/analyze")
+def analyze(q: str = Query(..., description="Raw query")) -> dict:
+    """How the ranker interpreted each query token (exact / prefix / translit / fuzzy)."""
+    ranker, _ = catalog.get()
+    from ranker import _TOKEN_RE, _STOP_BG, _STOP_EN  # debug view only
+
+    raws = [t.lower() for t in _TOKEN_RE.findall(q)]
+    raws = [t for t in raws if t not in _STOP_BG and t not in _STOP_EN] or raws
+    groups = ranker.analyze(q)
+    return {"query": q, "tokens": [
+        {"token": r, "matches": [{"term": m.term, "quality": m.quality} for m in g]}
+        for r, g in zip(raws, groups)
+    ]}
+
+
+@app.get("/eval-results")
+def eval_results() -> dict:
+    if not EVAL_JSON.exists():
+        raise HTTPException(404, "run: python eval.py --json eval_results.json")
+    return json.loads(EVAL_JSON.read_text(encoding="utf-8"))
+
+
+@app.get("/catalog/stats")
+def catalog_stats() -> dict:
+    cards = catalog.read_cards()
+    ranker, mtime = catalog.get()
+    cats: dict[str, int] = {}
+    for c in cards:
+        head = (c.get("category") or "").split(" ")
+        # first two breadcrumb words in BG, e.g. "кредитиране жилищни"
+        bg = [w for w in head if any("а" <= ch <= "я" for ch in w)]
+        key = " ".join(bg[:2]) or "other"
+        cats[key] = cats.get(key, 0) + 1
+    lat = sorted(_latencies)
+    pct = lambda p: lat[min(len(lat) - 1, int(p * len(lat)))] if lat else None  # noqa: E731
+    return {
+        "cards": len(cards), "documents": sum(len(c["document_ids"]) for c in cards),
+        "flagships": [c["product_name_bg"] or c["product_name_en"] for c in cards if c.get("priority_boost", 1) > 1],
+        "summary_source": {s: sum(1 for c in cards if c.get("summary_source") == s) for s in ("tagline", "first_sentence", "llm")},
+        "by_category": sorted(cats.items(), key=lambda kv: -kv[1]),
+        "catalog_mtime": mtime, "core_vocab": len(ranker._core_set), "vocab": len(ranker._idf),
+        "latency": {"n": len(lat), "p50": pct(0.5), "p95": pct(0.95), "p99": pct(0.99), "recent": _latencies[-120:]},
+        "cache": _cached_rank.cache_info()._asdict(),
+    }
 
 
 @app.get("/catalog/cards")
