@@ -236,8 +236,94 @@ class EmbeddingRanker:
         ]
 
 
+# --------------------------------------------------------------------------- #
+# Held-out check against tuning-set overfitting.
+# The curated EVAL above was written by the same person who tuned the ranker,
+# so it is a *dev* set. This generates a query set mechanically from the
+# catalog (seeded, no human picking), one family of perturbations per card,
+# and is only ever run — never tuned against.
+# --------------------------------------------------------------------------- #
+def holdout_set(cards: list[dict], seed: int = 0) -> list[tuple[str, str, str]]:
+    import random
+    import re
+
+    from ranker import transliterate
+
+    rng = random.Random(seed)
+    stop = {"за", "на", "и", "с", "към", "от", "for", "and", "of", "the", "to", "with", "or", "или"}
+
+    def words(s: str) -> list[str]:
+        return [w for w in re.findall(r"[\wа-яА-Я]+", s.lower()) if w not in stop]
+
+    def typo(s: str) -> str:
+        ws = s.split()
+        cand = [i for i, w in enumerate(ws) if len(w) >= 5]
+        if not cand:
+            return s
+        i = rng.choice(cand)
+        w = ws[i]
+        j = rng.randrange(1, len(w) - 1)
+        ws[i] = w[:j] + w[j + 1] + w[j] + w[j + 2:]  # adjacent transposition
+        return " ".join(ws)
+
+    out = []
+    for c in cards:
+        g = c["canonical_key"]
+        bg, en = c["product_name_bg"], c["product_name_en"]
+        if bg:
+            out.append((bg, g, "name_bg"))
+            out.append((bg[: max(4, int(len(bg) * 0.55))], g, "prefix_bg"))
+            out.append((typo(bg), g, "typo_bg"))
+            out.append((transliterate(bg.lower()), g, "translit_bg"))
+            ws = words(bg)
+            if len(ws) >= 3:
+                pick = rng.sample(ws, 2)
+                out.append((" ".join(pick), g, "subset_bg"))
+        if en:
+            out.append((en, g, "name_en"))
+            out.append((en[: max(4, int(len(en) * 0.55))], g, "prefix_en"))
+            out.append((typo(en), g, "typo_en"))
+        if c.get("summary_bg") and c.get("summary_source") == "tagline":
+            out.append((c["summary_bg"], g, "tagline_bg"))
+        if c.get("summary_en") and c.get("summary_source") == "tagline":
+            out.append((c["summary_en"], g, "tagline_en"))
+    return out
+
+
+def run_holdout(cards: list[dict], embeddings: bool = False, show_fails: bool = False) -> list[tuple[str, dict]]:
+    global EVAL, NEGATIVES
+    saved = (EVAL, NEGATIVES)
+    EVAL, NEGATIVES = holdout_set(cards), NEGATIVES
+    print(f"\n#### HELD-OUT set: {len(EVAL)} generated queries (never tuned against)")
+    systems = [
+        ("BM25F only", lambda: lexical_ablation(cards, boosts=False, fuzzy=False)),
+        ("BM25F + prefix/typo/translit", lambda: lexical_ablation(cards, boosts=False, fuzzy=True)),
+        ("Ours", lambda: ProductCardRanker(cards)),
+    ]
+    rows = []
+    try:
+        for name, make in systems:
+            r = make()
+            m = evaluate(lambda q, k: r.rank(q, k, min_relevance=0.0), cards, show_fails=show_fails)
+            if hasattr(r, "_restore"):
+                r._restore()
+            rows.append((name, m))
+            print(f"{name:32} Hit@1 {m['hit@1']:.1%}  Hit@3 {m['hit@3']:.1%}  MRR {m['mrr']:.3f}")
+            print("   by tag:", {t: f"{v:.0%}" for t, v in sorted(m["by_tag"].items())})
+        if embeddings:
+            e = EmbeddingRanker(cards)
+            m = evaluate(e.rank, cards, min_relevance=0.45)
+            rows.append(("Embeddings (reference)", m))
+            print(f"{'Embeddings (reference)':32} Hit@1 {m['hit@1']:.1%}  Hit@3 {m['hit@3']:.1%}  MRR {m['mrr']:.3f}")
+            print("   by tag:", {t: f"{v:.0%}" for t, v in sorted(m["by_tag"].items())})
+    finally:
+        EVAL, NEGATIVES = saved
+    return rows
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--holdout", action="store_true", help="run the generated held-out set instead of the curated one")
     ap.add_argument("--catalog", default=str(ROOT / "products.json"))
     ap.add_argument("--embeddings", action="store_true")
     ap.add_argument("--show-fails", action="store_true")
@@ -246,6 +332,16 @@ def main() -> None:
     args = ap.parse_args()
 
     cards = json.loads(Path(args.catalog).read_text(encoding="utf-8"))
+    if args.holdout:
+        rows = run_holdout(cards, embeddings=args.embeddings, show_fails=args.show_fails)
+        if args.md:
+            tags = sorted({t for _, m in rows for t in m["by_tag"]})
+            lines = ["| system | Hit@1 | Hit@3 | MRR | " + " | ".join(tags) + " |", "|---|---|---|---|" + "---|" * len(tags)]
+            for name, m in rows:
+                lines.append(f"| {name} | {m['hit@1']:.1%} | {m['hit@3']:.1%} | {m['mrr']:.3f} | " + " | ".join(f"{m['by_tag'].get(t, 0):.0%}" for t in tags) + " |")
+            Path(args.md).write_text("\n".join(lines) + "\n", encoding="utf-8")
+            print(f"wrote {args.md}")
+        return
     rows = []
 
     systems = [

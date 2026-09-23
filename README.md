@@ -32,6 +32,41 @@ Per-tag Hit@1 for ours: flagship 100 %, generic-token 100 %, product 100 %, pref
 
 The embedding reference (`paraphrase-multilingual-MiniLM-L12-v2`, ONNX, `python eval.py --embeddings`) is where the spec allows semantic models: as a point of comparison. On this catalog it loses to the lexical ranker on every tag except generic single words, and it does **not** solve the flagship problem (29 % Hit@1 — DSK Mobile / Smart / Online / Business embed almost identically), while costing ~100× the latency and a 120 MB model at runtime. That is the argument for keeping semantics *offline* (aliases, summaries) and the runtime lexical. Full table: `eval_results_full.md`.
 
+### Overfitting check (held-out set)
+
+The 73-query set above is a **dev set**: the same person wrote it and tuned the
+ranker against its misses, and the flagship pins/aliases literally contain some
+of its queries (14/73 hit an `exact_match_pin`). So `python eval.py --holdout`
+generates a second set **mechanically from the catalog** (seed 0, no human
+picking, never tuned against): full BG/EN names, 55 % prefixes, adjacent-letter
+typos, transliterated names, random 2-word subsets, and the hero taglines as
+queries. 770 queries.
+
+| system | Hit@1 | Hit@3 | MRR | prefix | typo | translit | 2-word subset | tagline |
+|---|---|---|---|---|---|---|---|---|
+| BM25F only | 76.5 % | 86.8 % | 0.816 | 74–80 % | 71–73 % | 16 % | 80 % | 88–90 % |
+| + prefix / typo / translit | 91.7 % | 98.4 % | 0.950 | 78–86 % | 99 % | 95 % | 80 % | 88–90 % |
+| **Ours** | **91.9 %** | **98.4 %** | **0.952** | 78–86 % | 99 % | 98 % | 80 % | 88–90 % |
+| Embeddings (reference) | 54.4 % | 74.8 % | 0.665 | 22–43 % | 51–57 % | 44 % | 37 % | 64–71 % |
+
+What this says, honestly:
+
+* The curated-set number (98.6 %) is optimistic by ~7 points; **91.9 % Hit@1 /
+  98.4 % Hit@3** is the fair estimate for query shapes nobody hand-picked.
+  The gap is concentrated in *prefix* and *2-word subset* queries, which are
+  genuinely ambiguous (55 % of "Застраховка „Кредитна защита“ за…" matches
+  three products) — Hit@3 at 98.4 % shows the gold is almost always right there.
+* The hand-written flagship config (pins + aliases) is worth **+8 points on the
+  curated set and +0.2 on the held-out one**: it fixes a specific business
+  requirement (DSK Mobile must beat "mobile"), it does not inflate general
+  quality. The generic mechanisms (prefix / typo / transliteration) carry the
+  general gain: 76.5 → 91.7.
+* The embedding reference stays far behind on both sets, so the lexical-vs-
+  semantic conclusion is not an artefact of the dev set.
+* No learned parameters exist; what *was* tuned by hand (field weights, bonus
+  sizes, thresholds) was tuned on the dev set. Before production, the bank's
+  real query log becomes the test set — the dashboard/API log is built for that.
+
 ## Files
 
 | file | purpose |
