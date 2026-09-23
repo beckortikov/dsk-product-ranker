@@ -12,7 +12,7 @@ returns a ranked list of product cards in well under a millisecond.
 |---|---|
 | Ranked list of `{document_id, product_name, product_summary, relevance}` | `POST /rank-product-cards` — see contract below |
 | `product_summary` = short selling message (not in the data) | extracted offline from each page's **hero tagline** (the `##` under the title — the bank's own one-liner), 81/85 cards; fallback = first sentence of "What is it?"; optional `--llm` rewrite with Claude |
-| **Lightweight** (embeddings only as a reference point) | pure-Python BM25F + coverage scoring; **p50 0.4 ms, p95 < 1 ms** per query on 85 cards; embeddings used only in `eval.py` as the reference baseline |
+| **Lightweight** (embeddings only as a reference point) | pure-Python BM25F + coverage scoring; **p50 0.1 ms, p95 0.3 ms** per query on 85 cards; embeddings used only in `eval.py` as the reference baseline |
 | **Scalable** — easy to add / delete cards | catalog is one `products.json`; `PUT/DELETE /catalog/cards/{id}` or edit the file → index rebuilds in-process on the next request, no retrain, no redeploy |
 | **Bulgarian & English** | one index over both languages of every page; per-script stemming; query-time transliteration (`kreditna karta`, `дск мобайл`) |
 | Near-duplicate pages (individual / business / corporate) | collapsed into one card at build time (201 pages → 85 cards); all `document_id`s kept, first returned |
@@ -23,9 +23,9 @@ returns a ranked list of product cards in well under a millisecond.
 
 | system | Hit@1 | Hit@3 | MRR | abstain on negatives | p50 ms | p95 ms |
 |---|---|---|---|---|---|---|
-| BM25F only | 82.2 % | 87.7 % | 0.857 | 80 % | 0.10 | 0.19 |
-| + prefix / typo / transliteration | 91.8 % | 97.3 % | 0.944 | 80 % | 0.23 | 0.47 |
-| **Ours** (+ curated aliases, pins, boosts) | **98.6 %** | **100 %** | **0.993** | 80 % | 0.35 | 0.76 |
+| BM25F only | 82.2 % | 87.7 % | 0.857 | 80 % | 0.08 | 0.12 |
+| + prefix / typo / transliteration | 90.4 % | 97.3 % | 0.937 | 80 % | 0.10 | 0.35 |
+| **Ours** (+ curated aliases, pins, boosts) | **98.6 %** | **100 %** | **0.993** | 80 % | 0.10 | 0.31 |
 | Multilingual embeddings (reference only) | see `eval_results_full.md` | | | | | |
 
 Per-tag Hit@1 for ours: flagship 100 %, generic-token 100 %, product 100 %, prefix 100 %, cross-language 100 %, transliteration 100 %, typo 80 %, natural-language questions 100 %.
@@ -142,8 +142,8 @@ So each card gets:
 ## Production notes (system design)
 
 * **Runtime deps:** `snowballstemmer`, `rapidfuzz`, FastAPI. No torch, no
-  model files, ~50 MB image. Index for 85 cards builds in ~50 ms, memory < 20 MB.
-* **Latency:** p95 < 1 ms in-process; end-to-end on localhost single-digit ms.
+  model files, ~50 MB image. Index for 85 cards builds in ~100 ms, memory < 20 MB.
+* **Latency:** p50 0.1 ms / p95 0.3 ms in-process; end-to-end on localhost single-digit ms.
   Identical `(query, top_k, min_relevance, catalog_mtime)` are served from a
   4096-entry LRU — the 10-keystroke polling from many users hits the same prefixes.
 * **Catalog lifecycle.** `products.json` is the deployable artefact.

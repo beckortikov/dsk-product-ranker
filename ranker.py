@@ -38,6 +38,7 @@ import math
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -115,8 +116,15 @@ def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+@lru_cache(maxsize=200_000)
 def _stem(tok: str) -> str:
+    # Snowball is pure Python; page bodies repeat the same few thousand
+    # tokens, so caching turns a 3 s index build into ~100 ms.
     return _BG_STEM.stemWord(tok) if _is_cyrillic_token(tok) else _EN_STEM.stemWord(tok)
+
+
+def _raw_tokens(text: str) -> list[str]:
+    return [t for t in (t.lower() for t in _TOKEN_RE.findall(text or "")) if t not in _STOP_BG and t not in _STOP_EN]
 
 
 def tokenize(text: str, *, drop_stop: bool = True) -> list[str]:
@@ -256,6 +264,7 @@ class ProductCardRanker:
     def _build(self) -> None:
         indexed: list[_IndexedCard] = []
         core_vocab: set[str] = set()
+        core_raw: dict[str, str] = {}  # unstemmed surface form -> stem, for fuzzy matching
         for c in self._raw_cards:
             name_display = c.get("product_name_bg") or c.get("product_name_en") or ""
             summary_display = c.get("summary_bg") or c.get("summary_en") or ""
@@ -290,6 +299,8 @@ class ProductCardRanker:
                     ic.name_terms = set(toks)
                 if f in ("name", "aliases", "category", "summary"):
                     core_vocab.update(toks)
+                    for raw in _raw_tokens(fields_text[f]):
+                        core_raw.setdefault(raw, _stem(raw))
             indexed.append(ic)
 
         self._cards = indexed
@@ -306,7 +317,8 @@ class ProductCardRanker:
         # Prefix / fuzzy expansion runs against the *core* vocabulary
         # (name + aliases + summary) — body vocabulary is too noisy for it.
         self._core_set = core_vocab
-        self._core_vocab = sorted(core_vocab, key=lambda t: -df.get(t, 0))  # for fuzzy
+        self._core_raw = core_raw
+        self._core_raw_list = sorted(core_raw, key=lambda t: -df.get(core_raw[t], 0))  # for fuzzy
         self._core_sorted = sorted(core_vocab)                              # for prefix bisect
         self._body_sorted = sorted(set(df) - core_vocab)
 
@@ -329,16 +341,24 @@ class ProductCardRanker:
         hits.sort(key=lambda t: -self._df.get(t, 0))
         return hits[:_MAX_EXPANSIONS]
 
-    def _fuzzy_matches(self, stem: str) -> list[str]:
-        if _rf_process is None or len(stem) < _FUZZY_MIN_LEN:
+    def _fuzzy_matches(self, raw: str) -> list[str]:
+        """Damerau-Levenshtein against the *surface forms* of the core
+        vocabulary ("крата" → "карта"), mapped back to stems."""
+        if _rf_process is None or len(raw) < _FUZZY_MIN_LEN:
             return []
-        max_d = 1 if len(stem) < 7 else 2
+        max_d = 1 if len(raw) < 7 else 2
         hits = _rf_process.extract(
-            stem, self._core_vocab, scorer=_rf_lev.distance,
+            raw, self._core_raw_list, scorer=_rf_lev.distance,
             score_cutoff=max_d, limit=_MAX_EXPANSIONS * 2,
         )
         # Typos rarely hit the first letter — requiring it removes most junk.
-        return [h[0] for h in hits if h[0][0] == stem[0]][:_MAX_EXPANSIONS]
+        out: list[str] = []
+        for h in hits:
+            if h[0][0] == raw[0]:
+                stem = self._core_raw[h[0]]
+                if stem not in out:
+                    out.append(stem)
+        return out[:_MAX_EXPANSIONS]
 
     def _match_token(self, raw: str, *, is_last: bool) -> list[_Match]:
         """Map one raw query token to catalog terms.
@@ -363,7 +383,8 @@ class ProductCardRanker:
         if is_last:
             add(self._prefix_matches(stem), _MATCH_PREFIX)
         if not exact or stem not in self._core_set:
-            tr = _stem(transliterate(raw))
+            tr_raw = transliterate(raw)
+            tr = _stem(tr_raw)
             translit_hit = False
             if tr in self._idf:
                 add([tr], _MATCH_TRANSLIT)
@@ -373,7 +394,7 @@ class ProductCardRanker:
                 add(pre, _MATCH_TRANSLIT)
                 translit_hit = bool(pre)
             if not translit_hit:
-                add(self._fuzzy_matches(stem) or self._fuzzy_matches(tr), _MATCH_FUZZY)
+                add(self._fuzzy_matches(raw) or self._fuzzy_matches(tr_raw), _MATCH_FUZZY)
         return out
 
     def analyze(self, query: str) -> list[list[_Match]]:
