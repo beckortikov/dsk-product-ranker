@@ -14,7 +14,17 @@ def code(s):
     cells.append({"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [], "source": s})
 
 
+code("""# Colab bootstrap: clones the repo and installs deps. Does nothing when run locally from the repo.
+import os, sys
+if 'google.colab' in sys.modules and not os.path.exists('ranker.py'):
+    !git clone -q https://github.com/beckortikov/dsk-product-ranker
+    %cd dsk-product-ranker
+    %pip install -q -r requirements.txt
+    print('ready')""")
+
 md("""# DSK Bank — Product Cards Ranker · demo & evaluation
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/beckortikov/dsk-product-ranker/blob/main/demo.ipynb) · [code on GitHub](https://github.com/beckortikov/dsk-product-ranker) · [live dashboard on Hugging Face](https://huggingface.co/spaces/beckortikov/dsk-product-ranker)
 
 Lightweight bilingual (BG + EN) ranker for the Smart Search on dskbank.bg.
 Zero ML at runtime, sub-millisecond, catalog is a hot-reloadable `products.json`.

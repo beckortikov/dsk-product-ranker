@@ -1,5 +1,7 @@
 # DSK Bank — ранкер продуктовых карточек
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/beckortikov/dsk-product-ranker/blob/main/demo.ipynb) [![Live dashboard](https://img.shields.io/badge/live%20dashboard-Hugging%20Face%20Space-blue)](https://huggingface.co/spaces/beckortikov/dsk-product-ranker)
+
 *English version: [README.md](README.md)*
 
 Лёгкий двуязычный (BG + EN) ранкер для Smart Search на dskbank.bg. Фронт
