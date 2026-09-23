@@ -82,7 +82,7 @@ with gr.Blocks(title="DSK Product Cards Ranker") as demo:
 if __name__ == "__main__":
     # Gradio (patched by `spaces` on ZeroGPU) owns the port; we attach our
     # FastAPI app to its server after it is up.
-    demo.launch(server_name="0.0.0.0", prevent_thread_lock=True, show_api=False)
+    demo.launch(server_name="0.0.0.0", prevent_thread_lock=True)
     server = getattr(demo, "server_app", None) or getattr(demo, "app", None)
 
     @server.get("/dashboard", include_in_schema=False)
