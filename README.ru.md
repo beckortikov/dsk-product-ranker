@@ -40,7 +40,8 @@ Embedding-референс (`paraphrase-multilingual-MiniLM-L12-v2`, ONNX, `pyth
 | `build_catalog.py` | **офлайн**: пары BG/EN, схлопывание дублей, чистка разметки, продающие месседжи, категории, алиасы, ключевые слова, конфиг флагманов → `products.json` |
 | `products.json` | каталог — **единственный источник правды** в рантайме |
 | `ranker.py` | `ProductCardRanker`: токенизация, понимание запроса, BM25F + coverage-скоринг |
-| `app.py` | FastAPI: `/rank-product-cards`, `/catalog/cards` (добавить/удалить), `/health`, hot-reload, кэш, лог запросов |
+| `app.py` | FastAPI: `/rank-product-cards`, `/catalog/cards` (добавить/удалить), `/health`, hot-reload, кэш, лог запросов; отдаёт дашборд на `/` |
+| `static/index.html` | **живой дашборд** (`GET /`): поиск с ранжированием на каждый символ, график relevance и разбор запроса по токенам, графики eval (системы × метрики, Hit@1 по типам запросов), латенси в реальном времени, состав каталога |
 | `eval.py` | eval-набор, метрики, абляции, embedding-baseline |
 | `demo.ipynb` | исполненное демо: запросы, интерактивный виджет, разбор запроса, таблица метрик, латенси, добавление/удаление вживую |
 | `tests/` | 29 pytest-тестов (поведение ранкера, инварианты каталога, контракт API, hot-reload, add/delete) |
@@ -55,7 +56,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python eval.py                  # метрики; --embeddings — добавить референс-baseline
 .venv/bin/python -m pytest -q             # 29 тестов
 .venv/bin/jupyter notebook demo.ipynb     # демо
-.venv/bin/uvicorn app:app --port 8000     # API
+.venv/bin/uvicorn app:app --port 8000     # API + дашборд → открыть http://localhost:8000/
 ```
 
 ```bash

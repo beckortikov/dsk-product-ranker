@@ -40,7 +40,8 @@ The embedding reference (`paraphrase-multilingual-MiniLM-L12-v2`, ONNX, `python 
 | `build_catalog.py` | **offline**: pair BG/EN, collapse duplicates, clean markup, extract selling messages, categories, aliases, keywords, flagship config → `products.json` |
 | `products.json` | the catalog — **single source of truth** consumed at runtime |
 | `ranker.py` | `ProductCardRanker`: tokenisation, query understanding, BM25F + coverage scoring |
-| `app.py` | FastAPI service: `/rank-product-cards`, `/catalog/cards` (add/delete), `/health`, hot-reload, cache, request log |
+| `app.py` | FastAPI service: `/rank-product-cards`, `/catalog/cards` (add/delete), `/health`, hot-reload, cache, request log; serves the dashboard at `/` |
+| `static/index.html` | **live dashboard** (`GET /`): search box that ranks on every keystroke with a relevance chart and the token-level query analysis, eval charts (systems × metrics, Hit@1 by query type), live latency, catalog composition |
 | `eval.py` | eval set, metrics, lexical ablations, embedding baseline |
 | `demo.ipynb` | executed demo: queries, interactive widget, query analysis, eval table, latency, live add/delete |
 | `tests/` | 29 pytest tests (ranker behaviour, catalog invariants, API contract, hot-reload, add/delete) |
@@ -55,7 +56,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python eval.py                  # metrics; add --embeddings for the reference baseline
 .venv/bin/python -m pytest -q             # 29 tests
 .venv/bin/jupyter notebook demo.ipynb     # interactive demo
-.venv/bin/uvicorn app:app --port 8000     # API
+.venv/bin/uvicorn app:app --port 8000     # API + dashboard → open http://localhost:8000/
 ```
 
 ```bash
