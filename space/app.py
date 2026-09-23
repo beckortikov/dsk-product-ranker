@@ -82,8 +82,10 @@ with gr.Blocks(title="DSK Product Cards Ranker") as demo:
 
 if __name__ == "__main__":
     # Gradio (patched by `spaces` on ZeroGPU) owns the port; we attach our
-    # FastAPI app to its server after it is up.
-    demo.launch(server_name="0.0.0.0", prevent_thread_lock=True)
+    # FastAPI app to its server after it is up. ssr_mode=False: with SSR on,
+    # a Node proxy sits on the public port and answers *every* path with the
+    # Gradio index, so /dashboard would never reach Python.
+    demo.launch(server_name="0.0.0.0", prevent_thread_lock=True, ssr_mode=False)
     server = getattr(demo, "server_app", None) or getattr(demo, "app", None)
     # Gradio ends its route table with a catch-all that serves its index for
     # any path, so our routes must go *in front* of it, not be appended.
