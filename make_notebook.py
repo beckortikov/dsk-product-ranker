@@ -24,7 +24,7 @@ if 'google.colab' in sys.modules and not os.path.exists('ranker.py'):
 
 md("""# DSK Bank — Product Cards Ranker · demo & evaluation
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/beckortikov/dsk-product-ranker/blob/main/demo.ipynb) · [code on GitHub](https://github.com/beckortikov/dsk-product-ranker) · [live dashboard on Hugging Face](https://huggingface.co/spaces/beckortikov/dsk-product-ranker)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/beckortikov/dsk-product-ranker/blob/main/demo.ipynb) · [code on GitHub](https://github.com/beckortikov/dsk-product-ranker) · [live dashboard on Hugging Face](https://beckortikov-dsk-product-ranker.hf.space/dashboard/)
 
 Lightweight bilingual (BG + EN) ranker for the Smart Search on dskbank.bg.
 Zero ML at runtime, sub-millisecond, catalog is a hot-reloadable `products.json`.

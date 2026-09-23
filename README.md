@@ -1,6 +1,6 @@
 # DSK Bank — Product Cards Ranker
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/beckortikov/dsk-product-ranker/blob/main/demo.ipynb) [![Live dashboard](https://img.shields.io/badge/live%20dashboard-Hugging%20Face%20Space-blue)](https://huggingface.co/spaces/beckortikov/dsk-product-ranker)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/beckortikov/dsk-product-ranker/blob/main/demo.ipynb) [![Live dashboard](https://img.shields.io/badge/live%20dashboard-Hugging%20Face%20Space-blue)](https://beckortikov-dsk-product-ranker.hf.space/dashboard/)
 
 *Русская версия: [README.ru.md](README.ru.md)*
 
