@@ -78,7 +78,7 @@ What this says, honestly:
 | `app.py` | FastAPI service: `/rank-product-cards`, `/catalog/cards` (add/delete), `/health`, hot-reload, cache, request log; serves the dashboard at `/` |
 | `static/index.html` | **live dashboard** (`GET /`): search box that ranks on every keystroke with a relevance chart and the token-level query analysis, eval charts (systems × metrics, Hit@1 by query type), live latency, catalog composition |
 | `eval.py` | eval set, metrics, lexical ablations, embedding baseline |
-| `demo.ipynb` | executed demo: queries, interactive widget, query analysis, eval table, latency, live add/delete |
+| `demo.ipynb` | executed demo, **starts from the raw CSVs**: data facts (languages, BG-only flagships, duplicates, taglines) → catalog build in-notebook → queries, interactive widget, query analysis, eval + held-out, latency, live add/delete. Regenerate with `make_notebook.py` |
 | `tests/` | 29 pytest tests (ranker behaviour, catalog invariants, API contract, hot-reload, add/delete) |
 | `Dockerfile` | production image (`uvicorn`, 2 workers, healthcheck) |
 
