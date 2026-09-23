@@ -8,6 +8,17 @@ serves the real FastAPI app from there: dashboard at `/`, API at
 """
 from __future__ import annotations
 
+# Free-tier Spaces on this account run on ZeroGPU hardware. Its runtime
+# requires `import spaces` before anything else and at least one function
+# decorated with @spaces.GPU (we never call it: the ranker is CPU-only).
+try:
+    import spaces  # noqa: F401
+except ImportError:  # local run / CPU hardware
+    class spaces:  # type: ignore[no-redef]
+        @staticmethod
+        def GPU(fn=None, **_):
+            return fn if fn else (lambda f: f)
+
 import importlib.util
 import os
 import subprocess
@@ -25,6 +36,13 @@ if not os.path.exists(os.path.join(DST, "ranker.py")):
 
 os.chdir(DST)
 sys.path.insert(0, DST)
+
+
+@spaces.GPU
+def _zerogpu_placeholder() -> str:
+    """Satisfies the ZeroGPU runtime check; never invoked."""
+    return "cpu-only ranker"
+
 os.environ.setdefault("CATALOG_PATH", os.path.join(DST, "products.json"))
 
 # The repo's module is also called app.py -> load it under another name.
